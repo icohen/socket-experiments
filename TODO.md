@@ -1,0 +1,1 @@
+-delete mouse on disconnect

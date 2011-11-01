@@ -1,0 +1,125 @@
+doctype 5
+html
+  head
+    link(href='/css/style.css', rel='stylesheet')
+    script(src='/js/jquery-1.6.4.min.js')
+    script(src='/socket.io/socket.io.js')
+    script
+      // socket.io specific code
+      socket = io.connect();
+
+      socket.on('connect', function () {
+        $('#chat').addClass('connected');
+      });
+
+      socket.on('announcement', function (msg) {
+        $('#lines').append($('<p>').append($('<em>').text(msg)));
+      });
+
+      socket.on('nicknames', function (nicknames) {
+        $('#nicknames').empty().append($('<span>Online: </span>'));
+        for (var i in nicknames) {
+          $('#nicknames').append($('<b>').text(nicknames[i]));
+        }
+      });
+
+      socket.on('user message', message);
+      socket.on('reconnect', function () {
+        $('#lines').remove();
+        message('System', 'Reconnected to the server');
+      });
+
+      socket.on('reconnecting', function () {
+        message('System', 'Attempting to re-connect to the server');
+      });
+
+      socket.on('error', function (e) {
+        message('System', e ? e : 'A unknown error occurred');
+      });
+
+      function message (from, msg) {
+        $('#lines').append($('<p>').append($('<b>').text(from), msg));
+      }
+
+      // dom manipulation
+      $(function () {
+        $('#set-nickname').submit(function (ev) {
+          socket.emit('nickname', $('#nick').val(), function (set) {
+            if (!set) {
+              clear();
+              return $('#chat').addClass('nickname-set');
+            }
+            $('#nickname-err').css('visibility', 'visible');
+          });
+          return false;
+        });
+
+        $('#send-message').submit(function () {
+          message('me', $('#message').val());
+          socket.emit('user message', $('#message').val());
+          clear();
+          $('#lines').get(0).scrollTop = 10000000;
+          return false;
+        });
+        
+        function clear () {
+          $('#message').val('').focus();
+        };
+        
+      });
+
+    // mouse position sharing
+    script      
+      // assume socket already defined 
+      // socket.io
+      socket.on('mousemove', function(data){
+        moveMouse(data.color, data.x, data.y);
+      });
+      
+      $(function(){
+        var color = randomHexColor();
+        $('#random-color').html(color)
+        $(document).mousemove(function(e){
+          socket.emit('mousemove', 
+                      { color: color, x: e.pageX, y: e.pageY });
+          printMousePos(e.pageX, e.pageY);
+        });
+        
+      });
+      
+      function printMousePos(x, y){
+        $('#mouse-pos').html(x +', '+ y);
+      };
+      function moveMouse(color, x, y){
+        var m = $('#'+color);
+        if (!m.size()) {
+          m = $('<span/>').attr({class: 'mouse', id: color});
+          $('#mice').append(m);
+        }  
+        m.css({'top':y, 'left':x});
+      }
+      function randomHexColor(){
+        return Math.round(0xffffff * Math.random()).toString(16);
+      }
+        
+  body
+    #chat
+      #nickname
+        form.wrap#set-nickname
+          p Please type in your nickname and press enter to chat.
+          input#nick
+          p#nickname-err Nickname already in use
+      #connecting
+        .wrap Connecting to socket.io server
+      #messages
+        #nicknames
+        #lines
+      form#send-message
+        input#message
+        button Send
+    #content
+      p Some text for us to play with
+    #debug
+      dt random color
+      dd#random-color 
+    #mice
